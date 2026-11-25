@@ -13,9 +13,10 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from dashboard import Dashboard
 
 REPORTS = "https://sproyt.bjoroy.me/api/v1/integrations/grafana/reports"
-USER_AGENT = "Sitevakt/0.1.2"
+USER_AGENT = "Sitevakt/0.2.0"
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -160,11 +161,19 @@ def main():
     retry_at = 0
     last_status = None
     next_summary = 0
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    previous_names = {row[0] for row in db.execute("SELECT name FROM health")}
+    dashboard = Dashboard(observer, names, previous_names.difference(names))
+    pending = None
+    with ThreadPoolExecutor(max_workers=4) as pool, ThreadPoolExecutor(max_workers=1) as publisher:
         while True:
             started = time.monotonic()
             results = list(pool.map(probe, targets))
             inventory(db, observer, targets, results, int(time.time()))
+            if pending is None or pending.done():
+                down = {row[0] for row in db.execute("SELECT name FROM health WHERE down_since IS NOT NULL")}
+                states = {"maal_" + n: ("ON" if n in down else "OFF") for n in names}
+                states["tenestefeil"] = "ON" if "ON" in states.values() else "OFF"
+                pending = publisher.submit(dashboard.publish, states)
             if token and started >= retry_at:
                 delay = deliver(db, token)
                 retry_at = time.monotonic() + delay

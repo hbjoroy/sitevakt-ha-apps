@@ -1,11 +1,13 @@
 name: Sitevakt
 slug: site_watch
 description: Kontroller fast tenesteregister og etterlever driftsmeldingar til Sprøyt.
-version: "0.1.2"
+version: "0.2.0"
 arch: [amd64, aarch64]
 startup: services
 boot: auto
 init: true
+services:
+  - mqtt:want
 options:
   observer: site
   drift_token: ""

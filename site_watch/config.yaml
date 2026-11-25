@@ -1,0 +1,20 @@
+name: Sitevakt
+slug: site_watch
+description: Kontroller fast tenesteregister og etterlever driftsmeldingar til Sprøyt.
+version: "0.1.2"
+arch: [amd64, aarch64]
+startup: services
+boot: auto
+init: true
+options:
+  observer: site
+  drift_token: ""
+  targets: []
+schema:
+  observer: str
+  drift_token: password
+  targets:
+    - name: str
+      url: url
+      check: list(ok|ready|grafana|ha)
+
